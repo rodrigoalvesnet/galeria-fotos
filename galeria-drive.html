@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galeria de Fotos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1e1e21;
+    --border: #2a2a2e;
+    --accent: #c8a96e;
+    --accent2: #e8c98e;
+    --text: #f0ece4;
+    --muted: #7a7870;
+    --radius: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+
+
+  /* ── HEADER ── */
+  header {
+    padding: 40px 32px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .back-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .back-btn svg { width: 16px; height: 16px; }
+  .back-btn.visible { display: flex; }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb-item {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .2s;
+  }
+  .breadcrumb-item:hover { color: var(--accent); }
+  .breadcrumb-item.active { color: var(--text); cursor: default; }
+  .breadcrumb-sep { color: var(--border); font-size: 18px; }
+
+  /* ── LOADING ── */
+  #loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    gap: 16px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── ERROR ── */
+  #error-msg {
+    display: none;
+    margin: 24px;
+    padding: 20px 24px;
+    background: #1a0808;
+    border: 1px solid #4a1515;
+    border-radius: var(--radius);
+    color: #e08080;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── GRID ── */
+  #grid {
+    padding: 0 24px 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  /* ── FOLDER CARD ── */
+  .folder-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .folder-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(200,169,110,0.05));
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .folder-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .folder-card:hover::before { opacity: 1; }
+  .folder-icon { font-size: 36px; }
+  .folder-name { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.4; }
+  .folder-meta { font-size: 12px; color: var(--muted); }
+
+  /* ── PHOTO CARD ── */
+  .photo-card {
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: all .2s;
+  }
+  .photo-card:hover { transform: scale(1.02); border-color: var(--accent); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  .photo-card img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .3s;
+  }
+  .photo-card:hover img { transform: scale(1.05); }
+  .photo-card .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,.7) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity .2s;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+  }
+  .photo-card:hover .overlay { opacity: 1; }
+  .photo-card .overlay span { font-size: 12px; color: #e0dcd4; line-height: 1.3; }
+
+  /* ── EMPTY ── */
+  #empty {
+    display: none;
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  #empty .big { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── MODAL ── */
+  #modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,.92);
+    backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+  }
+  #modal.open { display: flex; }
+
+  .modal-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* close */
+  .modal-close {
+    position: fixed;
+    top: 20px; right: 20px;
+    width: 40px; height: 40px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 50%;
+    background: rgba(0,0,0,.5);
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    transition: all .2s;
+    z-index: 10;
+  }
+  .modal-close:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,0,0,.8); }
+
+  /* nav arrows */
+  .modal-nav {
+    position: fixed;
+    top: 50%; transform: translateY(-50%);
+    width: 48px; height: 48px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 50%;
+    background: rgba(0,0,0,.5);
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+    z-index: 10;
+  }
+  .modal-nav:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,0,0,.8); }
+  .modal-nav.prev { left: 16px; }
+  .modal-nav.next { right: 16px; }
+  .modal-nav svg { width: 20px; height: 20px; }
+
+  /* image */
+  .modal-img-wrap {
+    max-width: calc(100vw - 140px);
+    max-height: calc(100vh - 80px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-img {
+    max-width: 100%;
+    max-height: calc(100vh - 80px);
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.8);
+    transition: opacity .2s;
+  }
+  #modal-img.fade { opacity: 0; }
+
+  /* info bar */
+  .modal-info {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 16px 24px;
+    background: linear-gradient(to top, rgba(0,0,0,.8), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-info .name { font-size: 13px; color: #e0dcd4; }
+  .modal-info .counter { font-size: 12px; color: var(--muted); }
+
+  /* filmstrip */
+  .filmstrip {
+    position: fixed;
+    bottom: 52px; left: 50%; transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,.6);
+    border-radius: 40px;
+    backdrop-filter: blur(4px);
+    max-width: calc(100vw - 40px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filmstrip::-webkit-scrollbar { display: none; }
+  .filmstrip-thumb {
+    width: 40px; height: 40px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 2px solid transparent;
+    transition: border-color .2s;
+    opacity: .5;
+    transition: all .2s;
+  }
+  .filmstrip-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .filmstrip-thumb.active { border-color: var(--accent); opacity: 1; }
+
+  /* responsive */
+  @media (max-width: 600px) {
+    #grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 0 12px 32px; }
+    header { padding: 24px 16px 16px; }
+    .modal-nav.prev { left: 8px; }
+    .modal-nav.next { right: 8px; }
+    .modal-img-wrap { max-width: calc(100vw - 100px); }
+  }
+</style>
+</head>
+<body>
+
+
+
+<header>
+  <button class="back-btn" id="back-btn" onclick="goBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="breadcrumb-item active" onclick="goRoot()">Galeria</span>
+  </div>
+</header>
+
+<div id="loading"><div class="spinner"></div><span>Carregando...</span></div>
+<div id="error-msg"></div>
+<div id="empty"><div class="big">📂</div>Nenhum item encontrado.</div>
+<div id="grid"></div>
+
+<!-- ── MODAL ── -->
+<div id="modal">
+  <div class="modal-inner">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <button class="modal-nav prev" onclick="navModal(-1)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="modal-img-wrap">
+      <img id="modal-img" src="" alt="">
+    </div>
+    <button class="modal-nav next" onclick="navModal(1)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="modal-info">
+      <span class="name" id="modal-name"></span>
+      <span class="counter" id="modal-counter"></span>
+    </div>
+    <div class="filmstrip" id="filmstrip"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  ★  CONFIGURE AQUI
+// ════════════════════════════════════════════════
+const API_KEY        = 'AIzaSyA_C7qq2Ci10QOe3IFwToKHKSlmJHWSqyQ';
+const ROOT_FOLDER_ID = '15qqzdD2PjmuQ_HLC-VraYlLWRAfg5ptx';
+// ════════════════════════════════════════════════
+
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const IMAGE_MIME = ['image/jpeg','image/png','image/gif','image/webp','image/heic','image/bmp'];
+
+let stack = []; // navigation stack: [{id, name}]
+let photos = []; // current photos in view
+let modalIdx = 0;
+
+// ── helpers ──────────────────────────────────────
+
+function thumb(id)  { return `https://drive.google.com/thumbnail?id=${id}&sz=w400`; }
+function full(id)   { return `https://drive.google.com/uc?export=view&id=${id}`; }
+
+function showLoading(v) { document.getElementById('loading').style.display = v ? 'flex' : 'none'; }
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.innerHTML = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function listFolder(folderId) {
+  const fields = 'files(id,name,mimeType,modifiedTime)';
+  const q = `'${folderId}' in parents and trashed=false`;
+  const url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&orderBy=name&key=${API_KEY}&pageSize=1000`;
+  const r = await fetch(url);
+  if (!r.ok) {
+    const err = await r.json();
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  return (await r.json()).files || [];
+}
+
+// ── navigation ────────────────────────────────────
+
+async function openFolder(id, name) {
+  stack.push({ id, name });
+  await renderFolder(id);
+  updateBreadcrumb();
+}
+
+async function goBack() {
+  if (stack.length <= 1) { stack = []; await renderFolder(ROOT_FOLDER_ID); updateBreadcrumb(); return; }
+  stack.pop();
+  const top = stack[stack.length - 1];
+  await renderFolder(top.id);
+  updateBreadcrumb();
+}
+
+async function goRoot() {
+  stack = [];
+  await renderFolder(ROOT_FOLDER_ID);
+  updateBreadcrumb();
+}
+
+function updateBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  const btn = document.getElementById('back-btn');
+
+  let html = `<span class="breadcrumb-item ${stack.length === 0 ? 'active' : ''}" onclick="goRoot()">Galeria</span>`;
+  stack.forEach((s, i) => {
+    html += `<span class="breadcrumb-sep">›</span>`;
+    const isLast = i === stack.length - 1;
+    html += `<span class="breadcrumb-item ${isLast ? 'active' : ''}" 
+              onclick="${!isLast ? `goToStack(${i})` : ''}">${s.name}</span>`;
+  });
+  bc.innerHTML = html;
+  btn.classList.toggle('visible', stack.length > 0);
+}
+
+async function goToStack(idx) {
+  stack = stack.slice(0, idx + 1);
+  await renderFolder(stack[stack.length - 1].id);
+  updateBreadcrumb();
+}
+
+// ── render ───────────────────────────────────────
+
+async function renderFolder(folderId) {
+  showLoading(true);
+  showError('');
+  document.getElementById('grid').innerHTML = '';
+  document.getElementById('empty').style.display = 'none';
+  photos = [];
+
+  try {
+    const files = await listFolder(folderId);
+    const folders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+    const images  = files.filter(f => IMAGE_MIME.includes(f.mimeType));
+
+    showLoading(false);
+    const grid = document.getElementById('grid');
+
+    if (folders.length === 0 && images.length === 0) {
+      document.getElementById('empty').style.display = 'block';
+      return;
+    }
+
+    // render folders
+    folders.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'folder-card';
+      card.innerHTML = `
+        <div class="folder-icon">📁</div>
+        <div class="folder-name">${f.name}</div>
+      `;
+      card.onclick = () => openFolder(f.id, f.name);
+      grid.appendChild(card);
+    });
+
+    // render photos
+    photos = images;
+    images.forEach((img, idx) => {
+      const card = document.createElement('div');
+      card.className = 'photo-card';
+      const pic = document.createElement('img');
+      pic.src = thumb(img.id);
+      pic.alt = img.name;
+      pic.loading = 'lazy';
+      const overlay = document.createElement('div');
+      overlay.className = 'overlay';
+      overlay.innerHTML = `<span>${img.name}</span>`;
+      card.appendChild(pic);
+      card.appendChild(overlay);
+      card.onclick = () => openModal(idx);
+      grid.appendChild(card);
+    });
+
+  } catch (e) {
+    showLoading(false);
+    showError(`
+      <strong>Erro ao carregar o Drive:</strong> ${e.message}<br><br>
+      Verifique se:<br>
+      • A <code>API_KEY</code> está correta e a Google Drive API está ativada<br>
+      • O <code>ROOT_FOLDER_ID</code> está correto<br>
+      • A pasta está compartilhada como <em>Qualquer pessoa com o link</em>
+    `);
+  }
+}
+
+// ── modal ─────────────────────────────────────────
+
+function openModal(idx) {
+  modalIdx = idx;
+  renderModal();
+  buildFilmstrip();
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function navModal(dir) {
+  modalIdx = (modalIdx + dir + photos.length) % photos.length;
+  renderModal();
+  syncFilmstrip();
+}
+
+function renderModal() {
+  const photo = photos[modalIdx];
+  const img = document.getElementById('modal-img');
+  img.classList.add('fade');
+  setTimeout(() => {
+    img.src = full(photo.id);
+    img.onload = () => img.classList.remove('fade');
+    img.onerror = () => { img.src = thumb(photo.id); img.classList.remove('fade'); };
+  }, 150);
+  document.getElementById('modal-name').textContent = photo.name;
+  document.getElementById('modal-counter').textContent = `${modalIdx + 1} / ${photos.length}`;
+}
+
+function buildFilmstrip() {
+  const strip = document.getElementById('filmstrip');
+  strip.innerHTML = '';
+  photos.forEach((p, i) => {
+    const t = document.createElement('div');
+    t.className = 'filmstrip-thumb' + (i === modalIdx ? ' active' : '');
+    t.innerHTML = `<img src="${thumb(p.id)}" alt="" loading="lazy">`;
+    t.onclick = () => { modalIdx = i; renderModal(); syncFilmstrip(); };
+    strip.appendChild(t);
+  });
+}
+
+function syncFilmstrip() {
+  const thumbs = document.querySelectorAll('.filmstrip-thumb');
+  thumbs.forEach((t, i) => t.classList.toggle('active', i === modalIdx));
+  thumbs[modalIdx]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+}
+
+// keyboard
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('modal').classList.contains('open')) return;
+  if (e.key === 'ArrowRight') navModal(1);
+  if (e.key === 'ArrowLeft')  navModal(-1);
+  if (e.key === 'Escape')     closeModal();
+});
+
+// click outside
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+// ── init ─────────────────────────────────────────
+renderFolder(ROOT_FOLDER_ID);
+</script>
+</body>
+</html>
